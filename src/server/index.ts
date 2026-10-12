@@ -334,7 +334,6 @@ async function startServer() {
             keySource: token
               ? "Ask the user for the gateway token. It is the `BG_TOKEN` value in the gateway's `.env` file."
               : "This gateway runs without auth, so no key is needed. Leave the Authorization header out.",
-            keyEnvVar: "BG_TOKEN",
           }),
         );
         return;

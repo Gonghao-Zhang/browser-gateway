@@ -6,8 +6,6 @@ export interface McpSetupDocOptions {
   mcpUrl: string;
   /** One sentence telling the agent where the user gets their key. */
   keySource: string;
-  /** Environment variable the config blocks read the key from. */
-  keyEnvVar?: string;
   /** Idle ceiling this server enforces, in minutes. */
   maxIdleMinutes?: number;
   /** One sentence on what a session costs, when it costs anything. */
@@ -18,7 +16,6 @@ export interface McpSetupDocOptions {
  *  Served unauthenticated at `GET /mcp/setup.md`, so it must never contain a key. */
 export function mcpSetupDoc(opts: McpSetupDocOptions): string {
   const { mcpUrl, keySource } = opts;
-  const envVar = opts.keyEnvVar ?? "BROWSER_GATEWAY_KEY";
   const idleMinutes = opts.maxIdleMinutes ?? IDLE_DEFAULT_MS / 60_000;
   const costNote = opts.costNote ?? "";
 
@@ -50,8 +47,13 @@ what you need, close the session.
 
 ${keySource}
 
-Do not continue without it. Do not invent one. Put it in an environment variable
-named \`${envVar}\` rather than writing it into a file that might be committed.
+Do not continue without it. Do not invent one.
+
+Store the key the way your tool normally stores an MCP server's credentials: through
+its own add-server command, its settings screen, or its user-level config file. Do
+not ask the user to set an environment variable or run \`export\`; that differs by
+operating system and fails on Windows. Do not put the key in a file inside a project
+folder that could be committed; use the user-level config instead.
 
 ## Step 2: write the config for the agent you are
 
@@ -62,45 +64,38 @@ Endpoint: \`${mcpUrl}\`
 Transport: streamable HTTP
 Auth: \`Authorization: Bearer <key>\` request header. The key never goes in the URL.
 
-Use whichever block matches the tool you are running inside.
+If your tool has its own way to add an MCP server (a command, a settings screen or a
+built-in skill), use it with these values. The blocks below show the shape for common
+tools. Replace \`<key>\` with the user's key. \`~\` means the user's home folder
+(\`%USERPROFILE%\` on Windows).
 
 ### Claude Code
 
 \`\`\`bash
-claude mcp add --transport http browser-gateway ${mcpUrl} \\
-  --header "Authorization: Bearer $${envVar}"
-\`\`\`
-
-Or in \`.mcp.json\`:
-
-\`\`\`json
-{ "mcpServers": { "browser-gateway": {
-  "type": "http", "url": "${mcpUrl}",
-  "headers": { "Authorization": "Bearer \${${envVar}}" } } } }
+claude mcp add --transport http --scope user browser-gateway ${mcpUrl} --header "Authorization: Bearer <key>"
 \`\`\`
 
 ### Codex
 
-\`\`\`bash
-codex mcp add browser-gateway --url ${mcpUrl} --bearer-token-env-var ${envVar}
-\`\`\`
-
-Or in \`~/.codex/config.toml\`:
+Add to \`~/.codex/config.toml\` (the Codex CLI, IDE extension and desktop app share it):
 
 \`\`\`toml
 [mcp_servers.browser-gateway]
 url = "${mcpUrl}"
-bearer_token_env_var = "${envVar}"
+http_headers = { Authorization = "Bearer <key>" }
 \`\`\`
+
+In the Codex app or IDE extension you can instead open **MCP servers**, **Add server**,
+choose Streamable HTTP and add the same url and header.
 
 ### Cursor
 
-\`~/.cursor/mcp.json\` or \`.cursor/mcp.json\`:
+\`~/.cursor/mcp.json\`:
 
 \`\`\`json
 { "mcpServers": { "browser-gateway": {
   "url": "${mcpUrl}",
-  "headers": { "Authorization": "Bearer \${env:${envVar}}" } } } }
+  "headers": { "Authorization": "Bearer <key>" } } } }
 \`\`\`
 
 ### VS Code and Copilot
@@ -124,7 +119,7 @@ bearer_token_env_var = "${envVar}"
 \`\`\`json
 { "mcpServers": { "browser-gateway": {
   "serverUrl": "${mcpUrl}",
-  "headers": { "Authorization": "Bearer \${env:${envVar}}" } } } }
+  "headers": { "Authorization": "Bearer <key>" } } } }
 \`\`\`
 
 ### Cline
@@ -148,12 +143,12 @@ bearer_token_env_var = "${envVar}"
 
 ### OpenCode
 
-\`opencode.json\`. The type is \`remote\`:
+\`~/.config/opencode/opencode.json\`. The type is \`remote\`:
 
 \`\`\`json
 { "mcp": { "browser-gateway": {
   "type": "remote", "url": "${mcpUrl}", "enabled": true,
-  "headers": { "Authorization": "Bearer {env:${envVar}}" } } } }
+  "headers": { "Authorization": "Bearer <key>" } } } }
 \`\`\`
 
 ### Goose
